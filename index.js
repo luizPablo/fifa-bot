@@ -47,4 +47,15 @@ client.on('message', msg => {
     }
 });
 
-client.initialize();
+const puppeteer = require('puppeteer');
+
+(async () => {
+    const browser = await puppeteer.launch({
+        executablePath: '/usr/bin/chromium-browser',
+        headless: true,
+    });
+
+    await browser.newPage();
+
+    client.initialize();
+})();
