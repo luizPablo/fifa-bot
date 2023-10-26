@@ -53,6 +53,7 @@ const puppeteer = require('puppeteer');
     const browser = await puppeteer.launch({
         executablePath: '/usr/bin/chromium-browser',
         headless: true,
+        args: ["--no-sandbox"]
     });
 
     await browser.newPage();
