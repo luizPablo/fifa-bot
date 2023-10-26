@@ -16,7 +16,6 @@ const extractMatch = (msg) => {
 }
 
 (async () => {
-
     const client = new Client({
         puppeteer: {
             executablePath: '/usr/bin/chromium-browser',
