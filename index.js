@@ -15,19 +15,11 @@ const extractMatch = (msg) => {
     return splitedMessage[1];
 }
 
-const puppeteer = require('puppeteer');
-
 (async () => {
-    // const browser = await puppeteer.launch({
-    //     executablePath: '/usr/bin/chromium-browser',
-    //     headless: true
-    // });
-
-    // await browser.newPage();
 
     const client = new Client({
         puppeteer: {
-            executablePath: '/usr/bin/chromium-browser',
+            // executablePath: '/usr/bin/chromium-browser',
             headless: true,
             args: ['--no-sandbox'],
         }
@@ -35,6 +27,7 @@ const puppeteer = require('puppeteer');
 
     client.on('qr', (qr) => {
         console.log('QR RECEIVED', qr);
+        qrcode.generate(qr, { small: true });
     });
 
     client.on('ready', () => {
