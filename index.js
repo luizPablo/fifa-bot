@@ -50,13 +50,11 @@ client.on('message', msg => {
 const puppeteer = require('puppeteer');
 
 (async () => {
-    const browser = await puppeteer.launch({
+    await puppeteer.launch({
         executablePath: '/usr/bin/chromium-browser',
         headless: true,
         args: ["--no-sandbox"]
     });
-
-    await browser.newPage();
 
     client.initialize();
 })();
