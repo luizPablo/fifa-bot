@@ -25,6 +25,18 @@ const extractMatch = (msg) => {
         }
     });
 
+    client.on('disconnected', (reason) => {
+        console.log('Client was logged out', reason);
+    });
+
+    client.on('auth_failure', (msg) => {
+        console.error('AUTHENTICATION FAILURE', msg);
+    });
+
+    client.on('change_state', (state) => {
+        console.log('CHANGE STATE', state);
+    });
+
     client.on('qr', (qr) => {
         console.log('QR RECEIVED', qr);
         qrcode.generate(qr, { small: true });
