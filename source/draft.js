@@ -211,7 +211,7 @@ const callNextMember = async (msg, chat, client, from_subs = false) => {
             mentions: [contact]
         });
 
-        const time = currentChoice === 1 ? 120000 : currentChoice === 2 ? 120000 : 120000;
+        const time = currentChoice === 1 ? 1800000 : currentChoice === 2 ? 1200000 : 600000;
 
         turnTimeout = setTimeout(() => {
             client.sendMessage(msg.from, 'Tempo esgotado! Passando a vez...');
