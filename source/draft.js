@@ -15,7 +15,7 @@ const membersMap = {
     "Newclastle United": "558499344210",
     "RB Leipzig": "558494008968",
     "Wolverhamptom": "558488390218",
-    "Borussia Mgladbach": "558492258902",
+    "Borussia M’gladbach": "558492258902",
     "Paris Saint-Germain": "558498523150",
     "Liverpool": "558481514642",
     "Real Madrid": "558499922350",
