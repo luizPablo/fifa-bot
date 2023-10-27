@@ -17,7 +17,8 @@ const extractMatch = (msg) => {
 
 const client = new Client({
     puppeteer: {
-        args: ['--no-sandbox'],
+        executablePath: '/usr/bin/chromium-browser',
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
     }
 });
 
