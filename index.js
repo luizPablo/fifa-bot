@@ -34,7 +34,7 @@ client.on('message', msg => {
     const isMatchMessage = isMatchPostMessage(msg);
 
     if (msg.body === '!test') {
-        msg.reply('I am alive!');
+        msg.reply('Tô ligado!');
     }
 
     if (isMatchMessage) {
@@ -43,10 +43,10 @@ client.on('message', msg => {
         if (!match) {
             msg.reply('Erro ao registrar o jogo. Tente novamente. Ex: !jogo Flamengo 2-1 River');
         } else {
-            msg.reply(`## *${match}* ## registrado com sucesso! Você tem *12h* para postar o resultado.`);
+            msg.reply(`✅✅\n\n## *${match}* ## registrado com sucesso! Você tem *12h* para postar o resultado.`);
 
             setTimeout(() => {
-                msg.reply(`## *${match}* ## 12h se passaram. Cadastrou o resultado?`);
+                msg.reply(`⚠️⚠️\n\n## *${match}* ## 12h se passaram. Cadastrou o resultado?`);
             }, 43200000);
         }
     }
