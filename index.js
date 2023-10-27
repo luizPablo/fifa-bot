@@ -46,7 +46,7 @@ client.on('message', msg => {
             msg.reply(`✅✅\n\n## *${match}* ## registrado com sucesso! Você tem *12h* para postar o resultado.`);
 
             setTimeout(() => {
-                msg.reply(`⚠️⚠️\n\n## *${match}* ## 12h se passaram. Cadastrou o resultado?`);
+                msg.reply(`⚠️⚠️\n\n## *${match}* ## 12h se passaram. Postou o resultado? 👀`);
             }, 43200000);
         }
     }
