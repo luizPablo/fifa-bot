@@ -20,7 +20,7 @@ const extractMatch = (msg) => {
         puppeteer: {
             executablePath: '/usr/bin/chromium-browser',
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--enable-gpu'],
         }
     });
 
