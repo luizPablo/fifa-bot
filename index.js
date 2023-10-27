@@ -1,23 +1,10 @@
 const qrcode = require('qrcode-terminal');
 const { Client } = require('whatsapp-web.js');
-
-const isMatchPostMessage = (msg) => {
-    return msg.body.toLowerCase().startsWith('!jogo ');
-}
-
-const extractMatch = (msg) => {
-    const splitedMessage = msg.body.split('!jogo ');
-
-    if (splitedMessage.length < 2) {
-        return null;
-    }
-
-    return splitedMessage[1];
-}
+const { matchCommand } = require('./source/match');
 
 const client = new Client({
     puppeteer: {
-        executablePath: '/usr/bin/chromium-browser',
+        // executablePath: '/usr/bin/chromium-browser',
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
     }
 });
@@ -31,25 +18,11 @@ client.on('ready', () => {
 });
 
 client.on('message', msg => {
-    const isMatchMessage = isMatchPostMessage(msg);
-
     if (msg.body === '!test') {
-        msg.reply('Tô ligado!');
+        msg.reply('Ligadinho!');
     }
 
-    if (isMatchMessage) {
-        const match = extractMatch(msg);
-
-        if (!match) {
-            msg.reply('Erro ao registrar o jogo. Tente novamente. Ex: !jogo Flamengo 2-1 River');
-        } else {
-            msg.reply(`✅✅\n\n## *${match}* ## registrado com sucesso! Você tem *12h* para postar o resultado.`);
-
-            setTimeout(() => {
-                msg.reply(`⚠️⚠️\n\n## *${match}* ## 12h se passaram. Postou o resultado? 👀`);
-            }, 43200000);
-        }
-    }
+    matchCommand(msg);
 });
 
 client.initialize();
