@@ -17,8 +17,9 @@ const extractMatch = (msg) => {
 
 const client = new Client({
     puppeteer: {
-        executablePath: '/usr/bin/chromium-browser',
+        // executablePath: '/usr/bin/chromium-browser',
         ignoreHTTPSErrors: true,
+        headless: "new",
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--enable-gpu', '--disable-extensions'],
     }
 });
