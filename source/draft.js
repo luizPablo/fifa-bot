@@ -1,44 +1,48 @@
-const membersMap = {
-    "Chelsea": "558496208030",
-    "Borussia Dortmund": "558498178229",
-    "Arsenal": "558499295135",
-    "Eintracht Frankfurt": "558496608745",
-    "Ajax": "558494584526",
-    "Bayern Münichen": "558499680589",
-    "Manchester City": "558494812451",
-    "Milan": "558496371308",
-    "Juventus": "558499919369",
-    "Tottenham Hotspur": "558496059793",
-    "Barcelona": "558498483035",
-    "Bayer Leverkusen": "558499279049",
-    "Manchester United": "558499977001",
-    "Newclastle United": "558499344210",
-    "RB Leipzig": "558494008968",
-    "Wolverhamptom": "558488390218",
-    "Borussia M’gladbach": "558492258902",
-    "Paris Saint-Germain": "558498523150",
-    "Liverpool": "558481514642",
-    "Real Madrid": "558499922350",
-    "Porto": "558499700280",
-    "Atlético de Madrid": "558499123739",
-    "Wolfsburg": "558499800409",
-    "Udinese": "558496426956",
-    "Hoffenheim": "558496664752",
-    "Brighton": "558496054415",
-    "Sevilla": "556699245873",
-    "Celta de Vigo": "558498504518",
-};
+const {
+    ERR_COMMAND_NOT_ALLOWED,
+    ERR_INIT_DRAFT,
+    ERR_NOT_YOUR_TURN,
+    ERR_PLAYER_TAKEN,
+    ERR_WRONG_LIST,
+    ERR_PASS_LIMIT,
+    ERR_PLAYER_NOT_FOUND,
+    ERR_PLAYER_NOT_FOUND_IN_CHOICES,
+    ERR_NOT_PARTICIPATING,
+    ERR_SUBS_COMMAND,
+    ERR_SUBS_COMMAND_FORCE,
+    ERR_CHOICE_COMMAND,
+    ERR_CHOICE_COMMAND_FORCE,
+    ERR_PASS_TURN_COMMAND,
+    ERR_PASS_TURN_COMMAND_FORCE,
+    INFO_LIST_HEADER,
+    INFO_STILL_YOUR_TURN,
+    INFO_YOUR_TURN,
+    INFO_FINISHED_DRAFT,
+    INFO_TIME_OVER,
+    INFO_SUBS_DONE,
+    INFO_DRAFT_IN_PROGRESS,
+    INFO_CLOSED_DRAFT,
+    CMD_INIT_DRAFT,
+    CMD_FINISH_DRAFT,
+    CMD_CHOICE,
+    CMD_CHOICE_FORCE,
+    CMD_PASS_TURN,
+    CMD_PASS_TURN_FORCE,
+    CMD_SUBS,
+    CMD_SUBS_FORCE,
+    MEMBERS_MAP
+} = require("./utils/constants");
 
 let contactsMap = {
     "558496208030": null,
     "558498178229": null,
-    "558499295135": null,
+    "558499205135": null,
     "558496608745": null,
     "558494584526": null,
     "558499680589": null,
     "558494812451": null,
     "558496371308": null,
-    "558499919369": null,
+    "558499919360": null,
     "558496059793": null,
     "558498483035": null,
     "558499279049": null,
@@ -70,7 +74,6 @@ let chat;
 const normalize = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 const getFormattedDraftMessage = () => {
-    const instructions = `*- Limite de escolhas:*\nVocê pode fazer até 5 escolhas\n*- Cadastrar escolha:*\n!escolha <Nome Sobrenome>\nEx: !escolha Memphis Depay\n*- Passar a vez:*\n!passo <numero de vezes>\nEx: !passo 1\n\n*⚠️ 30 minutos para primeira escolha*\n*⚠️ 20 minutos na segunda rodada*\n*⚠️ 10 minutos nas rodadas seguintes*\n\n`;
 
     const formattedList = participants.map((participant, index) => {
         const choiceList = participant.choices.map(choice => `*${choice}*`).join('\n');
@@ -78,32 +81,30 @@ const getFormattedDraftMessage = () => {
         return `${index + 1}. ${participant.team}\n${choiceList}`;
     }).join('\n\n');
 
-    return `${instructions}${formattedList}`;
+    return `${INFO_LIST_HEADER}${formattedList}`;
 };
 
 const populateParticipants = async (members, msg, client) => {
-    if (members.length === 0) {
+    if (!Array.isArray(members) || members.length === 0) {
+        console.log('Invalid members list.');
         return null;
     }
 
-    members.forEach(member => {
-        if (!membersMap[member]) {
-            participants = [];
-            return;
-        };
-
-        participants.push({
-            member: membersMap[member],
-            team: member,
-            choices: [],
-        });
-    });
-
-    if (participants.length !== members.length) {
-        await client.sendMessage(msg.from, 'A lista de times está incorreta :(');
-
+    if (!members.every(member => MEMBERS_MAP[member])) {
+        try {
+            await client.sendMessage(msg.from, ERR_WRONG_LIST);
+            console.log(members.filter(member => !MEMBERS_MAP[member]));
+        } catch (error) {
+            console.log('Error sending message:', error);
+        }
         return null;
     }
+
+    participants = members.map(member => ({
+        member: MEMBERS_MAP[member],
+        team: member,
+        choices: [],
+    }));
 
     draftStarted = true;
 
@@ -111,67 +112,96 @@ const populateParticipants = async (members, msg, client) => {
 };
 
 const addChoice = async (choice, member, msg, chat, client, force = false) => {
-    const participant = participants.find(member => member.choices.length < currentChoice);
+    const participant = participants.find(participant => participant.choices.length < currentChoice);
 
     if (!participant) {
         return;
     }
 
-    if (!force) {
-        if (participant.member != member) {
-            await client.sendMessage(msg.from, 'Não é sua vez!');
-            return;
+    if (!force && participant.member !== member) {
+        try {
+            await client.sendMessage(msg.from, ERR_NOT_YOUR_TURN);
+        } catch (error) {
+            console.log('Error sending message:', error);
         }
+        return;
     }
 
     const normalizedChoice = normalize(choice);
 
-    // Check if the choice is already taken
-    for (let participant of participants) {
-        const normalizedChoices = participant.choices.map(normalize);
+    // Create a set of all normalized choices
+    const allChoices = new Set(participants.flatMap(participant =>
+        participant.choices.map(normalize)
+    ));
 
-        if (normalizedChoices.includes(normalizedChoice)) {
-            await client.sendMessage(msg.from, 'Jogador já escolhido!');
-            return;
+    if (allChoices.has(normalizedChoice)) {
+        try {
+            await client.sendMessage(msg.from, ERR_PLAYER_TAKEN);
+        } catch (error) {
+            console.log('Error sending message:', error);
         }
+        return;
     }
 
-    clearTimeout(turnTimeout);
+    if (turnTimeout) {
+        clearTimeout(turnTimeout);
+    }
 
     participant.choices.push(choice);
-    await client.sendMessage(msg.from, getFormattedDraftMessage());
-    await callNextMember(msg, chat, client);
+    try {
+        await client.sendMessage(msg.from, getFormattedDraftMessage());
+        await callNextMember(msg, chat, client);
+    } catch (error) {
+        console.log('Error sending message:', error);
+    }
 };
 
 const passTurn = async (times, member, msg, client, force = false) => {
-    const participant = participants.find(member => member.choices.length < currentChoice);
+    if (times < 0) {
+        console.log('Invalid times value.');
+        return;
+    }
+
+    const participant = participants.find(participant => participant.choices.length < currentChoice);
 
     if (!participant) {
         return;
     }
 
-    if (!force) {
-        if (participant.member != member) {
-            await client.sendMessage(msg.from, 'Não é sua vez!');
-            return;
+    if (!force && participant.member !== member) {
+        try {
+            await client.sendMessage(msg.from, ERR_NOT_YOUR_TURN);
+        } catch (error) {
+            console.log('Error sending message:', error);
         }
+        return;
     }
 
     const choicesMade = participant.choices.length;
     const availablePasses = 5 - choicesMade;
 
     if (times > availablePasses) {
-        await client.sendMessage(msg.from, `Você só pode passar ${availablePasses} vezes.`);
+        try {
+            await client.sendMessage(msg.from, ERR_PASS_LIMIT(availablePasses));
+        } catch (error) {
+            console.log('Error sending message:', error);
+        }
         return;
-    };
-
-    clearTimeout(turnTimeout);
-
-    for (let i = 0; i < times; i++) {
-        participant.choices.push('Passou');
     }
-    await client.sendMessage(msg.from, getFormattedDraftMessage());
-    await callNextMember(msg, chat, client);
+
+    if (turnTimeout) {
+        clearTimeout(turnTimeout);
+    }
+
+    // Add 'Passou' to the choices
+    participant.choices = participant.choices.concat(new Array(times).fill('Passou'));
+
+    try {
+        await client.sendMessage(msg.from, getFormattedDraftMessage());
+        await callNextMember(msg, chat, client);
+    } catch (error) {
+        console.log('Error calling next member:', error);
+    }
 };
 
 const callNextMember = async (msg, chat, client, from_subs = false) => {
@@ -185,53 +215,85 @@ const callNextMember = async (msg, chat, client, from_subs = false) => {
         currentChoice++;
 
         if (currentChoice > 5) {
-            client.sendMessage(msg.from, '✅✅\n\n- Escolhas finalizadas\n- Substituições ainda são possíveis\n- Lembre-se de finalizar o draft após as substituições\n\n*!finalizar-draft*');
-            allChoicesDone = true;
-
-            return;
-        }
-
-        await callNextMember(msg, chat, client);
-    } else {
-        const contact = contactsMap[participant.member];
-
-        if (from_subs) {
-
-            if (!allChoicesDone) {
-                await chat.sendMessage(`Ainda é sua vez @${contact.id.user}`, {
-                    mentions: [contact]
-                });
+            try {
+                client.sendMessage(msg.from, INFO_FINISHED_DRAFT);
+            } catch (error) {
+                console.log('Error sending message:', error);
             }
 
+            allChoicesDone = true;
             return;
         }
 
+        try {
+            await callNextMember(msg, chat, client);
+        } catch (error) {
+            console.log('Error calling next member:', error);
+        }
 
-        await chat.sendMessage(`Sua vez @${contact.id.user}`, {
-            mentions: [contact]
-        });
+        return;
+    }
 
-        const time = currentChoice === 1 ? 1800000 : currentChoice === 2 ? 1200000 : 600000;
+    const contact = contactsMap[participant.member];
 
-        turnTimeout = setTimeout(() => {
-            client.sendMessage(msg.from, 'Tempo esgotado! Passando a vez...');
-            passTurn(1, participant.member, msg, client);
+    if (!from_subs || !allChoicesDone) {
+        try {
+            const message = !from_subs ? INFO_YOUR_TURN(contact.id.user) : INFO_STILL_YOUR_TURN(contact.id.user);
+            await chat.sendMessage(message, {
+                mentions: [contact]
+            });
+        } catch (error) {
+            console.log('Error sending message:', error);
+        }
+    }
+
+    if (!from_subs) {
+        const timeMap = { 1: 1800000, 2: 1200000 };
+        const time = timeMap[currentChoice] || 600000;
+
+        turnTimeout = setTimeout(async () => {
+            try {
+                await client.sendMessage(msg.from, INFO_TIME_OVER);
+                await passTurn(1, participant.member, msg, client);
+            } catch (error) {
+                console.log('Error sending message:', error);
+            }
         }, time);
     }
+
+    return;
 };
 
 const changeChoiceAlreadyDone = async (member, msg, chat, client, force = false) => {
-    const splittedCommand = msg.body.split('!subs');
+    let splittedCommand;
+
+    if (force) {
+        splittedCommand = msg.body.split(CMD_SUBS_FORCE);
+    } else {
+        splittedCommand = msg.body.split(CMD_SUBS);
+    }
 
     if (splittedCommand.length < 2) {
-        await client.sendMessage(msg.from, 'Comando inválido\nEx: !subs <Nome Sobrenome> > <Nome Sobrenome>');
+        const message = force ? ERR_SUBS_COMMAND_FORCE : ERR_SUBS_COMMAND;
+
+        try {
+            await client.sendMessage(msg.from, message);
+        } catch (error) {
+            console.log('Error sending message:', error);
+        }
+
         return;
-    };
+    }
 
     const players = splittedCommand[1].split('>');
 
     if (players.length < 2) {
-        await client.sendMessage(msg.from, 'Comando inválido\nEx: !subs <Nome Sobrenome> > <Nome Sobrenome>');
+        try {
+            await client.sendMessage(msg.from, ERR_SUBS_COMMAND);
+        } catch (error) {
+            console.log('Error sending message:', error);
+        }
+
         return;
     }
 
@@ -246,153 +308,233 @@ const changeChoiceAlreadyDone = async (member, msg, chat, client, force = false)
         participant = participants.find(participant => participant.member === member);
     }
 
-
     if (!participant) {
-        if (force) {
-            client.sendMessage(msg.from, `${oldChoice}, esse elemento não foi encontrado entre as escolhas`);
-        } else {
-            client.sendMessage(msg.from, 'Você não está participando do draft ;D');
+        const message = force ? ERR_PLAYER_NOT_FOUND(oldChoice) : ERR_NOT_PARTICIPATING;
+        try {
+            await client.sendMessage(msg.from, message);
+        } catch (error) {
+            console.log('Error sending message:', error);
         }
+
         return;
     }
 
     const choiceIndex = participant.choices.indexOf(oldChoice);
 
     if (choiceIndex === -1) {
-        client.sendMessage(msg.from, `${oldChoice}, esse elemento não foi encontrado entre as suas escolhas`);
+        try {
+            await client.sendMessage(msg.from, ERR_PLAYER_NOT_FOUND_IN_CHOICES(oldChoice));
+        } catch (error) {
+            console.log('Error sending message:', error);
+        }
+
         return;
     }
 
-    // Check if the new choice is already taken
-    for (let participant of participants) {
-        if (participant.choices.includes(newChoice)) {
-            await client.sendMessage(msg.from, 'O jogador que você quer inserir já foi escolhido!');
-            return;
+    // Create a set of all choices
+    const allChoices = new Set(participants.flatMap(participant => participant.choices));
+
+    if (allChoices.has(newChoice)) {
+        try {
+            await client.sendMessage(msg.from, ERR_PLAYER_TAKEN);
+        } catch (error) {
+            console.log('Error sending message:', error);
         }
+
+        return;
     }
 
     // Replace the old choice with the new choice
     participant.choices[choiceIndex] = newChoice;
 
-    await client.sendMessage(msg.from, getFormattedDraftMessage());
-    await client.sendMessage(msg.from, 'Substituição realizada com sucesso!');
-    await callNextMember(msg, chat, client, true);
+    try {
+        await client.sendMessage(msg.from, getFormattedDraftMessage());
+        await client.sendMessage(msg.from, INFO_SUBS_DONE);
+        await callNextMember(msg, chat, client, true);
+    } catch (error) {
+        console.log('Error sending message:', error);
+    }
 };
 
 const draftCommand = async (msg, member, client) => {
+    let command;
+
     const initDraft = msg.body.toLowerCase().startsWith('!iniciar-draft');
-    const makingChoice = msg.body.toLowerCase().startsWith('!escolha');
-    const forceChoice = msg.body.toLowerCase().startsWith('!!escolha');
-    const passingTurn = msg.body.toLowerCase().startsWith('!passo');
-    const forcePassingTurn = msg.body.toLowerCase().startsWith('!!passo');
-    const subsChoice = msg.body.toLowerCase().startsWith('!subs');
-    const forceSubs = msg.body.toLowerCase().startsWith('!!subs');
     const finishDraft = msg.body.toLowerCase().startsWith('!finalizar-draft');
 
     if (initDraft) {
-        if (!(member == '558496208030' || member == '558498178229')) {
-            await client.sendMessage(msg.from, 'Você não tem permissão para usar esse comando ;D');
-            return;
-        }
+        command = CMD_INIT_DRAFT;
+    }
 
-        if (draftStarted) {
-            await client.sendMessage(msg.from, 'Já temos um draft em andamento.');
-        } else {
-            const members = msg.body.split('!iniciar-draft')[1].split('\n');
-            const filteredMembers = members.filter(member => member);
+    if (finishDraft) {
+        command = CMD_FINISH_DRAFT;
+    }
 
-            const draftStarted = await populateParticipants(filteredMembers, msg, client);
+    if (!command) {
+        command = msg.body.toLowerCase().split(' ')[0];
+    }
 
-            if (!draftStarted) {
-                client.sendMessage(msg.from, 'Erro ao iniciar o draft!');
-            } else {
-                chat = await msg.getChat();
+    const isAdmin = ['558496208030', '558498178229', '558498483035'].includes(member);
 
-                for (let participant of chat.participants) {
-                    const contact = await client.getContactById(participant.id._serialized);
-
-                    contactsMap[contact.number] = contact;
+    switch (command) {
+        case CMD_INIT_DRAFT:
+            if (!isAdmin) {
+                try {
+                    await client.sendMessage(msg.from, ERR_COMMAND_NOT_ALLOWED);
+                } catch (error) {
+                    console.log('Error sending message:', error);
                 }
 
-                await client.sendMessage(msg.from, getFormattedDraftMessage());
-                await callNextMember(msg, chat, client);
+                return;
             }
-        }
-    }
 
-    if (makingChoice && draftStarted) {
-        const player = msg.body.split('!escolha')[1].trim();
+            if (draftStarted) {
+                try {
+                    await client.sendMessage(msg.from, INFO_DRAFT_IN_PROGRESS);
+                } catch (error) {
+                    console.log('Error sending message:', error);
+                }
+            } else {
+                const members = msg.body.split('!iniciar-draft')[1].split('\n');
+                const filteredMembers = members.filter(member => member);
 
-        await addChoice(player, member, msg, chat, client);
-    }
+                const draftStarted = await populateParticipants(filteredMembers, msg, client);
 
-    if (forceChoice && draftStarted) {
-        const player = msg.body.split('!!escolha')[1].trim();
+                if (!draftStarted) {
+                    await client.sendMessage(msg.from, ERR_INIT_DRAFT);
+                } else {
+                    try {
+                        chat = await msg.getChat();
+                    } catch (error) {
+                        console.log('Error getting chat:', error);
 
-        if (!(member == '558496208030' || member == '558498178229')) {
-            await client.sendMessage(msg.from, 'Você não tem permissão para usar esse comando ;D');
-            return;
-        }
+                        return;
+                    }
 
-        await addChoice(player, member, msg, chat, client, true);
-    }
+                    for (let participant of chat.participants) {
+                        try {
+                            const contact = await client.getContactById(participant.id._serialized);
+                            contactsMap[contact.number] = contact;
+                        } catch (error) {
+                            console.log('Error getting contact:', error);
 
-    if (passingTurn && draftStarted) {
-        const timesStr = msg.body.split('!passo')[1].trim();
+                            return;
+                        }
+                    }
 
-        const times = parseInt(timesStr);
-        if (isNaN(times)) {
-            await client.sendMessage(msg.from, 'Comando inválido. Ex: !passo 1');
-            return;
-        }
+                    try {
+                        await client.sendMessage(msg.from, getFormattedDraftMessage());
+                        await callNextMember(msg, chat, client);
+                    } catch (error) {
+                        console.log('Error sending message:', error);
+                    }
+                }
+            }
+            break;
+        case CMD_CHOICE:
+        case CMD_CHOICE_FORCE:
+            if (draftStarted) {
+                if (command === '!!escolha' && !isAdmin) {
+                    try {
+                        await client.sendMessage(msg.from, ERR_COMMAND_NOT_ALLOWED);
+                    } catch (error) {
+                        console.log('Error sending message:', error);
+                    }
 
-        await passTurn(times, member, msg, client);
-    }
+                    return;
+                }
 
-    if (forcePassingTurn && draftStarted) {
-        const timesStr = msg.body.split('!!passo')[1].trim();
+                const splittedCommand = msg.body.split(command);
 
-        const times = parseInt(timesStr);
-        if (isNaN(times)) {
-            await client.sendMessage(msg.from, 'Comando inválido. Ex: !!passo 1');
-            return;
-        }
+                if (splittedCommand.length < 2) {
+                    const message = command === '!escolha' ? ERR_CHOICE_COMMAND : ERR_CHOICE_COMMAND_FORCE;
+                    try {
+                        await client.sendMessage(msg.from, message);
+                    } catch (error) {
+                        console.log('Error sending message:', error);
+                    }
 
-        if (!(member == '558496208030' || member == '558498178229')) {
-            await client.sendMessage(msg.from, 'Você não tem permissão para usar esse comando ;D');
-            return;
-        }
+                    return;
+                }
 
-        await passTurn(times, member, msg, client, true);
-    }
+                const player = msg.body.split(command)[1].trim();
 
-    if (subsChoice && draftStarted) {
-        await changeChoiceAlreadyDone(member, msg, chat, client);
-    }
+                await addChoice(player, member, msg, chat, client, command === '!!escolha');
+            }
+            break;
+        case CMD_PASS_TURN:
+        case CMD_PASS_TURN_FORCE:
+            if (draftStarted) {
+                if (command === '!!passo' && !isAdmin) {
+                    try {
+                        await client.sendMessage(msg.from, ERR_COMMAND_NOT_ALLOWED);
+                    } catch (error) {
+                        console.log('Error sending message:', error);
+                    }
 
-    if (forceSubs && draftStarted) {
-        if (!(member == '558496208030' || member == '558498178229')) {
-            await client.sendMessage(msg.from, 'Você não tem permissão para usar esse comando ;D');
-            return;
-        }
+                    return;
+                }
 
-        await changeChoiceAlreadyDone(member, msg, chat, client, true);
-    }
+                const timesStr = msg.body.split(command)[1].trim();
 
-    if (finishDraft && draftStarted) {
-        if (!(member == '558496208030' || member == '558498178229')) {
-            await client.sendMessage(msg.from, 'Você não tem permissão para usar esse comando ;D');
-            return;
-        }
+                const times = parseInt(timesStr);
+                if (isNaN(times)) {
+                    const message = command === '!passo' ? ERR_PASS_TURN_COMMAND : ERR_PASS_TURN_COMMAND_FORCE;
 
-        participants = [];
-        currentChoice = 1;
-        draftStarted = false;
-        allChoicesDone = false;
-        chat = null;
-        clearTimeout(turnTimeout);
+                    try {
+                        await client.sendMessage(msg.from, message);
+                    } catch (error) {
+                        console.log('Error sending message:', error);
+                    }
 
-        await client.sendMessage(msg.from, '✅✅\n\nDraft finalizado com sucesso!');
+                    return;
+                }
+
+                await passTurn(times, member, msg, client, command === '!!passo');
+            }
+            break;
+        case CMD_SUBS:
+        case CMD_SUBS_FORCE:
+            if (draftStarted) {
+                if (command === '!!subs' && !isAdmin) {
+                    try {
+                        await client.sendMessage(msg.from, ERR_COMMAND_NOT_ALLOWED);
+                    } catch (error) {
+                        console.log('Error sending message:', error);
+                    }
+
+                    return;
+                }
+
+                await changeChoiceAlreadyDone(member, msg, chat, client, command === '!!subs');
+            }
+            break;
+        case CMD_FINISH_DRAFT:
+            if (draftStarted) {
+                if (!isAdmin) {
+                    try {
+                        await client.sendMessage(msg.from, ERR_COMMAND_NOT_ALLOWED);
+                    } catch (error) {
+                        console.log('Error sending message:', error);
+                    }
+
+                    return;
+                }
+
+                participants = [];
+                currentChoice = 1;
+                draftStarted = false;
+                allChoicesDone = false;
+                chat = null;
+                clearTimeout(turnTimeout);
+
+                try {
+                    await client.sendMessage(msg.from, INFO_CLOSED_DRAFT);
+                } catch (error) {
+                    console.log('Error sending message:', error);
+                }
+            }
+            break;
     }
 };
 
