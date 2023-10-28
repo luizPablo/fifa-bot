@@ -13,6 +13,7 @@ const {
     CMD_SUBS,
     CMD_SUBS_FORCE,
     CMD_MATCH,
+    CMD_ADD_TEAM,
 } = require("./source/utils/constants");
 
 const client = new Client({
@@ -32,7 +33,7 @@ client.on('ready', () => {
 
 client.on('message', async msg => {
     if (msg.body === '!test') {
-        msg.reply('Ligadinho!');
+        msg.reply('Tô por aqui!');
     }
 
     let command;
@@ -56,7 +57,7 @@ client.on('message', async msg => {
         matchCommand(msg);
     }
 
-    if ([CMD_INIT_DRAFT, CMD_FINISH_DRAFT, CMD_CHOICE, CMD_CHOICE_FORCE, CMD_PASS_TURN, CMD_PASS_TURN_FORCE, CMD_SUBS, CMD_SUBS_FORCE].includes(command)) {
+    if ([CMD_INIT_DRAFT, CMD_FINISH_DRAFT, CMD_CHOICE, CMD_CHOICE_FORCE, CMD_PASS_TURN, CMD_PASS_TURN_FORCE, CMD_SUBS, CMD_SUBS_FORCE, CMD_ADD_TEAM].includes(command)) {
         try {
             const contact = await msg.getContact();
 

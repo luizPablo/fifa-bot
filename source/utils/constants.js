@@ -15,6 +15,8 @@ const ERR_CHOICE_COMMAND_FORCE = 'Comando inválido\nEx: !!escolha Memphis Depay
 const ERR_PASS_TURN_COMMAND = 'Comando inválido\nEx: !passo 1';
 const ERR_PASS_TURN_COMMAND_FORCE = 'Comando inválido\nEx: !!passo 1';
 const ERR_MATCH_REGISTER = 'Erro ao registrar o jogo. Tente novamente. Ex: !jogo Flamengo 2-1 River';
+const ERR_ADD_TEAM = 'Erro ao adicionar time. Tente novamente. Ex: !adicionar-time Real Madrid';
+const ERR_TEAM_ALREADY_ON_DRAFT = 'Time já participando do draft';
 
 // Constants for info messages
 const INFO_LIST_HEADER = `*- Limite de escolhas:*\nVocê pode fazer até 5 escolhas\n*- Cadastrar escolha:*\n!escolha <Nome Sobrenome>\nEx: !escolha Memphis Depay\n*- Passar a vez:*\n!passo <numero de vezes>\nEx: !passo 1\n\n*⚠️ 30 minutos para primeira escolha*\n*⚠️ 20 minutos na segunda rodada*\n*⚠️ 10 minutos nas rodadas seguintes*\n\n`;
@@ -27,6 +29,7 @@ const INFO_DRAFT_IN_PROGRESS = 'Já temos um draft em andamento';
 const INFO_CLOSED_DRAFT = '✅✅\n\nDraft finalizado com sucesso!';
 const INFO_MATCH_REGISTER = (match) => `✅✅\n\n## *${match}* ## registrado com sucesso! Você tem *12h* para postar o resultado.`;
 const INFO_MATCH_NOTIFIED = (match) => `⚠️⚠️\n\n## *${match}* ## 12h se passaram. Postou o resultado? 👀`;
+const INFO_ADD_TEAM = (team) => `✅✅\n\nTime *${team}* adicionado com sucesso!`;
 
 // Constants for commands names
 const CMD_INIT_DRAFT = '!iniciar-draft';
@@ -38,6 +41,7 @@ const CMD_PASS_TURN_FORCE = '!!passo';
 const CMD_SUBS = '!subs';
 const CMD_SUBS_FORCE = '!!subs';
 const CMD_MATCH = '!jogo';
+const CMD_ADD_TEAM = '!adicionar-time';
 
 const MEMBERS_MAP = {
     "Chelsea": "558496208030",
@@ -87,6 +91,8 @@ module.exports = {
     ERR_PASS_TURN_COMMAND,
     ERR_PASS_TURN_COMMAND_FORCE,
     ERR_MATCH_REGISTER,
+    ERR_ADD_TEAM,
+    ERR_TEAM_ALREADY_ON_DRAFT,
     INFO_LIST_HEADER,
     INFO_STILL_YOUR_TURN,
     INFO_YOUR_TURN,
@@ -97,6 +103,7 @@ module.exports = {
     INFO_CLOSED_DRAFT,
     INFO_MATCH_REGISTER,
     INFO_MATCH_NOTIFIED,
+    INFO_ADD_TEAM,
     CMD_INIT_DRAFT,
     CMD_FINISH_DRAFT,
     CMD_CHOICE,
@@ -106,5 +113,6 @@ module.exports = {
     CMD_SUBS,
     CMD_SUBS_FORCE,
     CMD_MATCH,
+    CMD_ADD_TEAM,
     MEMBERS_MAP
 };

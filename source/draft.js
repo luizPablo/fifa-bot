@@ -14,6 +14,8 @@ const {
     ERR_CHOICE_COMMAND_FORCE,
     ERR_PASS_TURN_COMMAND,
     ERR_PASS_TURN_COMMAND_FORCE,
+    ERR_ADD_TEAM,
+    ERR_TEAM_ALREADY_ON_DRAFT,
     INFO_LIST_HEADER,
     INFO_STILL_YOUR_TURN,
     INFO_YOUR_TURN,
@@ -22,6 +24,7 @@ const {
     INFO_SUBS_DONE,
     INFO_DRAFT_IN_PROGRESS,
     INFO_CLOSED_DRAFT,
+    INFO_ADD_TEAM,
     CMD_INIT_DRAFT,
     CMD_FINISH_DRAFT,
     CMD_CHOICE,
@@ -30,6 +33,7 @@ const {
     CMD_PASS_TURN_FORCE,
     CMD_SUBS,
     CMD_SUBS_FORCE,
+    CMD_ADD_TEAM,
     MEMBERS_MAP
 } = require("./utils/constants");
 
@@ -109,6 +113,40 @@ const populateParticipants = async (members, msg, client) => {
     draftStarted = true;
 
     return participants;
+};
+
+const addTeamToDraft = async (member, msg, client) => {
+    // Check if the member exists on the MEMBERS_MAP
+    if (!MEMBERS_MAP[member]) {
+        try {
+            await client.sendMessage(msg.from, ERR_ADD_TEAM);
+        } catch (error) {
+            console.log('Error sending message:', error);
+        }
+
+        return;
+    }
+
+    // Check if the member is already participating
+    if (participants.some(participant => participant.team === member)) {
+        try {
+            await client.sendMessage(msg.from, ERR_TEAM_ALREADY_ON_DRAFT);
+        } catch (error) {
+            console.log('Error sending message:', error);
+        }
+
+        return;
+    }
+
+    // Add the member to the end of the participants list
+    // Fill the choices with "Passou", until the current choice
+    participants.push({
+        member: MEMBERS_MAP[member],
+        team: member,
+        choices: new Array(currentChoice - 1).fill('Passou'),
+    });
+
+    return;
 };
 
 const addChoice = async (choice, member, msg, chat, client, force = false) => {
@@ -204,8 +242,8 @@ const passTurn = async (times, member, msg, client, force = false) => {
     }
 };
 
-const callNextMember = async (msg, chat, client, from_subs = false) => {
-    if (!from_subs) {
+const callNextMember = async (msg, chat, client, alt_mention = false) => {
+    if (!alt_mention) {
         clearTimeout(turnTimeout);
     }
 
@@ -236,18 +274,18 @@ const callNextMember = async (msg, chat, client, from_subs = false) => {
 
     const contact = contactsMap[participant.member];
 
-    if (!from_subs || !allChoicesDone) {
+    if (!alt_mention || !allChoicesDone) {
         try {
-            const message = !from_subs ? INFO_YOUR_TURN(contact.id.user) : INFO_STILL_YOUR_TURN(contact.id.user);
+            const message = !alt_mention ? INFO_YOUR_TURN(contact.id.user) : INFO_STILL_YOUR_TURN(contact.id.user);
             await chat.sendMessage(message, {
-                mentions: [contact]
+                mentions: [contact.id._serialized]
             });
         } catch (error) {
             console.log('Error sending message:', error);
         }
     }
 
-    if (!from_subs) {
+    if (!alt_mention) {
         const timeMap = { 1: 1800000, 2: 1200000 };
         const time = timeMap[currentChoice] || 600000;
 
@@ -299,6 +337,18 @@ const changeChoiceAlreadyDone = async (member, msg, chat, client, force = false)
 
     const oldChoice = players[0].trim();
     const newChoice = players[1].trim();
+
+    if (!oldChoice || !newChoice) {
+        const message = force ? ERR_SUBS_COMMAND_FORCE : ERR_SUBS_COMMAND;
+
+        try {
+            await client.sendMessage(msg.from, message);
+        } catch (error) {
+            console.log('Error sending message:', error);
+        }
+
+        return;
+    }
 
     let participant;
 
@@ -459,6 +509,17 @@ const draftCommand = async (msg, member, client) => {
 
                 const player = msg.body.split(command)[1].trim();
 
+                if (!player) {
+                    const message = command === '!escolha' ? ERR_CHOICE_COMMAND : ERR_CHOICE_COMMAND_FORCE;
+                    try {
+                        await client.sendMessage(msg.from, message);
+                    } catch (error) {
+                        console.log('Error sending message:', error);
+                    }
+
+                    return;
+                }
+
                 await addChoice(player, member, msg, chat, client, command === '!!escolha');
             }
             break;
@@ -507,6 +568,53 @@ const draftCommand = async (msg, member, client) => {
                 }
 
                 await changeChoiceAlreadyDone(member, msg, chat, client, command === '!!subs');
+            }
+            break;
+        case CMD_ADD_TEAM:
+            if (draftStarted) {
+                if (!isAdmin) {
+                    try {
+                        await client.sendMessage(msg.from, ERR_COMMAND_NOT_ALLOWED);
+                    } catch (error) {
+                        console.log('Error sending message:', error);
+                    }
+
+                    return;
+                }
+
+                const splittedCommand = msg.body.split(CMD_ADD_TEAM);
+
+                if (splittedCommand.length < 2) {
+                    try {
+                        await client.sendMessage(msg.from, ERR_ADD_TEAM);
+                    } catch (error) {
+                        console.log('Error sending message:', error);
+                    }
+
+                    return;
+                };
+
+                const member = splittedCommand[1].trim();
+
+                if (!member) {
+                    try {
+                        await client.sendMessage(msg.from, ERR_ADD_TEAM);
+                    } catch (error) {
+                        console.log('Error sending message:', error);
+                    }
+
+                    return;
+                }
+
+                await addTeamToDraft(member, msg, client);
+
+                try {
+                    await client.sendMessage(msg.from, getFormattedDraftMessage());
+                    await client.sendMessage(msg.from, INFO_ADD_TEAM);
+                    await callNextMember(msg, chat, client, true);
+                } catch (error) {
+                    console.log('Error sending message:', error);
+                }
             }
             break;
         case CMD_FINISH_DRAFT:
