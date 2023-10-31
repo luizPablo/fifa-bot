@@ -19,7 +19,7 @@ const {
 const client = new Client({
     puppeteer: {
         executablePath: '/usr/bin/chromium-browser',
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--enable-gpu', '--disable-extensions'],
     }
 });
 
