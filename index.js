@@ -1,5 +1,5 @@
 const qrcode = require('qrcode-terminal');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client } = require('whatsapp-web.js');
 const { matchCommand } = require('./source/match');
 const { draftCommand } = require("./source/draft");
 
