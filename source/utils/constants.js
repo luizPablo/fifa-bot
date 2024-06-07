@@ -66,7 +66,7 @@ const MEMBERS_MAP = {
     "Real Madrid": "558499922350",
     "Porto": "558499700280",
     "Atlético de Madrid": "558499123739",
-    "Wolfsburg": "558499800409",
+    "Wolfsburg": "558498185708",
     "Udinese": "558496426956",
     "Hoffenheim": "558496664752",
     "Brighton": "558496054415",
