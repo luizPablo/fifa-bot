@@ -46,9 +46,7 @@ const CMD_ADD_TEAM = '!adicionar-time';
 const MEMBERS_MAP = {
     "Chelsea": "558496208030",
     "Borussia Dortmund": "558498178229",
-    "Arsenal": "558499205135",
     "West Ham": "558496608745",
-    "Ajax": "558494584526",
     "Bayern München": "558499680589",
     "Manchester City": "558494812451",
     "Aston Villa": "558496371308",
@@ -59,7 +57,6 @@ const MEMBERS_MAP = {
     "Manchester United": "558499977001",
     "Newcastle United": "558499344210",
     "Al Nassr": "558494008968",
-    "Wolverhampton": "558488390218",
     "Salzburg": "558492258902",
     "Napoli": "558498523150",
     "Liverpool": "558481514642",
