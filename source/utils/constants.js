@@ -63,7 +63,7 @@ const MEMBERS_MAP = {
     "Real Madrid": "558499922350",
     "Porto": "558499700280",
     "Atlético de Madrid": "558499123739",
-    "Paris Saint Germain": "558498185708",
+    "Paris Saint-Germain": "558498185708",
     "Udinese": "558496426956",
     "Arsenal": "558496664752",
     "Brighton": "558496054415",
