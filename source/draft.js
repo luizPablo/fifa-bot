@@ -231,7 +231,16 @@ const passTurn = async (times, member, msg, client, force = false) => {
     return;
   }
 
-  const participant = participants.find(participant => participant.choices.length < currentChoice);
+  const current = participants.find(participant => participant.choices.length < currentChoice);
+  const sender = participants.find(participant => participant.member === member);
+
+  let participant;
+
+  if (force) {
+    participant = current;
+  } else {
+    participant = sender;
+  }
 
   if (!participant) {
     return;
@@ -253,7 +262,6 @@ const passTurn = async (times, member, msg, client, force = false) => {
     clearTimeout(turnTimeout);
   }
 
-  // Add 'Passou' to the choices
   participant.choices = participant.choices.concat(new Array(times).fill('Passou'));
 
   try {
@@ -558,6 +566,7 @@ const draftCommand = async (msg, member, client) => {
           const message = command === '!passo' ? ERR_PASS_TURN_COMMAND : ERR_PASS_TURN_COMMAND_FORCE;
           try {
             await client.sendMessage(msg.from, message);
+            await client.sendMessage(msg.from, COMIC_MESSAGES[Math.floor(Math.random() * COMIC_MESSAGES.length)]);
           } catch (error) {
             console.log('Error sending message:', error);
           }
