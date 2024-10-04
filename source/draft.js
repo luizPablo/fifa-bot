@@ -190,6 +190,7 @@ const addChoice = async (choice, member, msg, chat, client, force = false) => {
   if (normalizedChoice.startsWith('pass')) {
     try {
       await client.sendMessage(msg.from, ERR_PASS_TURN_IN_CHOICE_COMMAND);
+      await client.sendMessage(msg.from, COMIC_MESSAGES[Math.floor(Math.random() * COMIC_MESSAGES.length)]);
     } catch (error) {
       console.log('Error sending message:', error);
     }
