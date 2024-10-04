@@ -61,13 +61,17 @@ client.on('message', async msg => {
         matchCommand(msg);
     }
 
-    if ([CMD_INIT_DRAFT, CMD_FINISH_DRAFT, CMD_CHOICE, CMD_CHOICE_FORCE, CMD_PASS_TURN, CMD_PASS_TURN_FORCE, CMD_SUBS, CMD_SUBS_FORCE, CMD_ADD_TEAM].includes(command)) {
+    const validCommands = new Set([
+        CMD_INIT_DRAFT, CMD_FINISH_DRAFT, CMD_CHOICE, CMD_CHOICE_FORCE,
+        CMD_PASS_TURN, CMD_PASS_TURN_FORCE, CMD_SUBS, CMD_SUBS_FORCE, CMD_ADD_TEAM
+    ]);
+
+    if (validCommands.has(command)) {
         try {
             const contact = await msg.getContact();
-
             draftCommand(msg, contact.number, client);
         } catch (error) {
-            console.log('Tentativa de execução: ', command);
+            console.log(`Tentativa de execução: ${command}`);
             console.log('Erro ao executar comando', error);
         }
     }
