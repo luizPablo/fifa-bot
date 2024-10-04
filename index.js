@@ -14,6 +14,7 @@ const {
     CMD_SUBS_FORCE,
     CMD_MATCH,
     CMD_ADD_TEAM,
+    CMD_REMOVE_TEAM,
 } = require("./source/utils/constants");
 
 const client = new Client({
@@ -63,7 +64,8 @@ client.on('message', async msg => {
 
     const validCommands = new Set([
         CMD_INIT_DRAFT, CMD_FINISH_DRAFT, CMD_CHOICE, CMD_CHOICE_FORCE,
-        CMD_PASS_TURN, CMD_PASS_TURN_FORCE, CMD_SUBS, CMD_SUBS_FORCE, CMD_ADD_TEAM
+        CMD_PASS_TURN, CMD_PASS_TURN_FORCE, CMD_SUBS, CMD_SUBS_FORCE, CMD_ADD_TEAM,
+        CMD_REMOVE_TEAM
     ]);
 
     if (validCommands.has(command)) {
