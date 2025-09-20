@@ -15,7 +15,6 @@ const {
   ERR_PASS_TURN_COMMAND,
   ERR_PASS_TURN_COMMAND_FORCE,
   ERR_ADD_TEAM,
-  ERR_TEAM_ALREADY_ON_DRAFT,
   INFO_LIST_HEADER,
   INFO_STILL_YOUR_TURN,
   INFO_YOUR_TURN,
@@ -39,6 +38,9 @@ const {
   CMD_REMOVE_TEAM,
   ERR_REMOVE_TEAM,
   COMIC_MESSAGES,
+  CMD_REMOVE_PASS_TURN,
+  CMD_DRAFT_CONTINUE,
+  ERR_NO_PASS_TURN_TO_REMOVE
 } = require("./utils/constants");
 
 let contactsMap = {
@@ -82,7 +84,6 @@ let chat;
 const normalize = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 const getFormattedDraftMessage = () => {
-
   const formattedList = participants.map((participant, index) => {
     const choiceList = participant.choices.map(choice => `*${choice}*`).join('\n');
 
@@ -90,6 +91,145 @@ const getFormattedDraftMessage = () => {
   }).join('\n\n');
 
   return `${INFO_LIST_HEADER}${formattedList}`;
+};
+
+const draftContinue = async (msg, member, client) => {
+  const isAdmin = ['558496208030', '558498178229', '558498483035'].includes(member);
+
+  if (!isAdmin) {
+    try {
+      await client.sendMessage(msg.from, ERR_COMMAND_NOT_ALLOWED);
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  if (draftStarted) {
+    try {
+      await client.sendMessage(msg.from, INFO_DRAFT_IN_PROGRESS);
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  const commandIndex = msg.body.indexOf('!continuar-draft');
+  if (commandIndex === -1) {
+    try {
+      await client.sendMessage(msg.from, "❌ Comando inválido. Use: !continuar-draft seguido dos dados do draft.");
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  const draftData = msg.body.substring(commandIndex + '!continuar-draft'.length).trim();
+
+  if (!draftData) {
+    try {
+      await client.sendMessage(msg.from, "❌ Dados do draft não encontrados. Cole a última lista do draft após o comando.");
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  try {
+    const lines = draftData.split('\n').filter(line => line.trim());
+    const parsedParticipants = [];
+    let currentParticipant = null;
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+
+      if (!trimmedLine || trimmedLine.includes('Lista de escolhas') || trimmedLine.includes('---')) {
+        continue;
+      }
+
+      const participantMatch = trimmedLine.match(/^(\d+)\.\s*(.+)$/);
+      if (participantMatch) {
+        if (currentParticipant) {
+          parsedParticipants.push(currentParticipant);
+        }
+
+        const teamName = participantMatch[2].trim();
+
+        if (!MEMBERS_MAP[teamName]) {
+          throw new Error(`Time "${teamName}" não encontrado na lista de membros válidos.`);
+        }
+
+        currentParticipant = {
+          member: MEMBERS_MAP[teamName],
+          team: teamName,
+          choices: []
+        };
+      } else {
+        if (currentParticipant) {
+          const choice = trimmedLine.replace(/^\*|\*$/g, '').trim();
+          if (choice) {
+            currentParticipant.choices.push(choice);
+          }
+        }
+      }
+    }
+
+    if (currentParticipant) {
+      parsedParticipants.push(currentParticipant);
+    }
+
+    if (parsedParticipants.length === 0) {
+      throw new Error("Nenhum participante válido encontrado nos dados fornecidos.");
+    }
+
+    const maxChoices = Math.max(...parsedParticipants.map(p => p.choices.length));
+    const minChoices = Math.min(...parsedParticipants.map(p => p.choices.length));
+
+    const determinedCurrentChoice = (maxChoices === minChoices) ? maxChoices + 1 : maxChoices;
+
+    participants = parsedParticipants;
+    currentChoice = Math.min(determinedCurrentChoice, 5);
+    draftStarted = true;
+    allChoicesDone = currentChoice > 5;
+
+    try {
+      chat = await msg.getChat();
+
+      for (let participant of chat.participants) {
+        try {
+          const contact = await client.getContactById(participant.id._serialized);
+          contactsMap[contact.number] = contact;
+        } catch (error) {
+          console.log('Error getting contact:', error);
+        }
+      }
+
+      await client.sendMessage(msg.from, `✅ Draft restaurado com sucesso!\n📊 Rodada atual: ${currentChoice > 5 ? 'Finalizado' : currentChoice}\n👥 Participantes: ${participants.length}`);
+      await client.sendMessage(msg.from, getFormattedDraftMessage());
+
+      if (!allChoicesDone) {
+        await callNextMember(msg, chat, client);
+      }
+
+    } catch (error) {
+      console.log('Error setting up chat:', error);
+      throw new Error("Erro ao configurar o chat para continuar o draft.");
+    }
+
+  } catch (error) {
+    console.log('Error parsing draft data:', error);
+    try {
+      await client.sendMessage(msg.from, `❌ Erro ao processar dados do draft: ${error.message}\n\nCertifique-se de que os dados estejam no formato correto.`);
+    } catch (sendError) {
+      console.log('Error sending error message:', sendError);
+    }
+
+    participants = [];
+    currentChoice = 1;
+    draftStarted = false;
+    allChoicesDone = false;
+    chat = null;
+  }
 };
 
 const populateParticipants = async (members, msg, client) => {
@@ -256,6 +396,53 @@ const passTurn = async (times, member, msg, client, force = false) => {
     await callNextMember(msg, chat, client);
   } catch (error) {
     console.log('Error calling next member:', error);
+  }
+};
+
+const removePassTurn = async (member, msg, client) => {
+  const participant = participants.find(p => p.member === member);
+
+  if (!participant) {
+    try {
+      await client.sendMessage(msg.from, ERR_NOT_PARTICIPATING);
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  const passCount = participant.choices.filter(choice => choice === 'Passou').length;
+
+  if (passCount === 0) {
+    try {
+      await client.sendMessage(msg.from, ERR_NO_PASS_TURN_TO_REMOVE);
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  if (participant.choices.filter(c => c !== 'Passou').length === currentChoice) {
+    try {
+      await client.sendMessage(msg.from, `❌ Sua vez na rodada ${currentChoice} já passou. Não é possível remover passes.`);
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  const lastPassIndex = participant.choices.lastIndexOf('Passou');
+
+  if (lastPassIndex !== -1) {
+    participant.choices.splice(lastPassIndex, 1);
+
+    try {
+      await client.sendMessage(msg.from, `✅ Passe removido com sucesso! Agora você poderá fazer sua escolha na rodada ${participant.choices.length + 1} quando for sua vez.`);
+      await client.sendMessage(msg.from, getFormattedDraftMessage());
+      await callNextMember(msg, chat, client, true);
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
   }
 };
 
@@ -431,6 +618,7 @@ const draftCommand = async (msg, member, client) => {
 
   const initDraft = msg.body.toLowerCase().startsWith('!iniciar-draft');
   const finishDraft = msg.body.toLowerCase().startsWith('!finalizar-draft');
+  const continueDraft = msg.body.toLowerCase().startsWith('!continuar-draft');
 
   if (initDraft) {
     command = CMD_INIT_DRAFT;
@@ -438,6 +626,10 @@ const draftCommand = async (msg, member, client) => {
 
   if (finishDraft) {
     command = CMD_FINISH_DRAFT;
+  }
+
+  if (continueDraft) {
+    command = CMD_DRAFT_CONTINUE;
   }
 
   if (!command) {
@@ -499,6 +691,13 @@ const draftCommand = async (msg, member, client) => {
             console.log('Error sending message:', error);
           }
         }
+      }
+      break;
+    case CMD_DRAFT_CONTINUE:
+      try {
+        await draftContinue(msg, member, client);
+      } catch (error) {
+        console.log('Error sending message:', error);
       }
       break;
     case CMD_CHOICE:
@@ -699,6 +898,15 @@ const draftCommand = async (msg, member, client) => {
           await callNextMember(msg, chat, client, true);
         } catch (error) {
           console.log('Error sending message:', error);
+        }
+      }
+      break;
+    case CMD_REMOVE_PASS_TURN:
+      if (draftStarted) {
+        try {
+          await removePassTurn(member, msg, client);
+        } catch (error) {
+          console.log('Error removing pass turn:', error);
         }
       }
       break;
