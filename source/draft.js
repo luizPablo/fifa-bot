@@ -119,38 +119,22 @@ const populateParticipants = async (members, msg, client) => {
   return participants;
 };
 
-const addTeamToDraft = async (member, msg, client) => {
-  // Check if the member exists on the MEMBERS_MAP
-  if (!MEMBERS_MAP[member]) {
-    try {
-      await client.sendMessage(msg.from, ERR_ADD_TEAM);
-    } catch (error) {
-      console.log('Error sending message:', error);
-    }
+const addTeamsToDraft = async (members) => {
+  const addedTeams = [];
 
-    return;
+  for (const member of members) {
+    // Check if the member exists on the MEMBERS_MAP and isn't already participating
+    if (MEMBERS_MAP[member] && !participants.some(participant => participant.team === member)) {
+      participants.push({
+        member: MEMBERS_MAP[member],
+        team: member,
+        choices: new Array(currentChoice - 1).fill('Passou'),
+      });
+      addedTeams.push(member);
+    }
   }
 
-  // Check if the member is already participating
-  if (participants.some(participant => participant.team === member)) {
-    try {
-      await client.sendMessage(msg.from, ERR_TEAM_ALREADY_ON_DRAFT);
-    } catch (error) {
-      console.log('Error sending message:', error);
-    }
-
-    return;
-  }
-
-  // Add the member to the end of the participants list
-  // Fill the choices with "Passou", until the current choice
-  participants.push({
-    member: MEMBERS_MAP[member],
-    team: member,
-    choices: new Array(currentChoice - 1).fill('Passou'),
-  });
-
-  return;
+  return addedTeams;
 };
 
 const removeTeamFromDraft = async (member, msg, client) => {
@@ -646,9 +630,9 @@ const draftCommand = async (msg, member, client) => {
           return;
         };
 
-        const member = splittedCommand[1].trim();
+        const memberString = splittedCommand[1].trim();
 
-        if (!member) {
+        if (!memberString) {
           try {
             await client.sendMessage(msg.from, ERR_ADD_TEAM);
           } catch (error) {
@@ -658,11 +642,14 @@ const draftCommand = async (msg, member, client) => {
           return;
         }
 
-        await addTeamToDraft(member, msg, client);
+        const members = memberString.split(',').map(m => m.trim());
+        const addedTeams = await addTeamsToDraft(members);
 
         try {
           await client.sendMessage(msg.from, getFormattedDraftMessage());
-          await client.sendMessage(msg.from, INFO_ADD_TEAM);
+          if (addedTeams.length > 0) {
+            await client.sendMessage(msg.from, INFO_ADD_TEAM(addedTeams));
+          }
           await callNextMember(msg, chat, client, true);
         } catch (error) {
           console.log('Error sending message:', error);

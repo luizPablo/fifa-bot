@@ -15,7 +15,7 @@ const ERR_CHOICE_COMMAND_FORCE = 'Comando inválido\nEx: !!escolha Memphis Depay
 const ERR_PASS_TURN_COMMAND = 'Comando inválido\nEx: !passo 1';
 const ERR_PASS_TURN_COMMAND_FORCE = 'Comando inválido\nEx: !!passo 1';
 const ERR_MATCH_REGISTER = 'Erro ao registrar o jogo. Tente novamente. Ex: !jogo Flamengo 2-1 River';
-const ERR_ADD_TEAM = 'Erro ao adicionar time. Tente novamente. Ex: !adicionar-time Real Madrid';
+const ERR_ADD_TEAM = 'Erro ao adicionar time. Tente novamente. Ex: !adicionar-time Real Madrid, Barcelona, Chelsea';
 const ERR_REMOVE_TEAM = 'Erro ao remover time. Tente novamente. Ex: !remover-time Real Madrid';
 const ERR_TEAM_ALREADY_ON_DRAFT = 'Time já participando do draft';
 const ERR_PASS_TURN_IN_CHOICE_COMMAND = 'Deixe de ser bocó! Se quiser passar a vez, use o comando !passo x';
@@ -31,7 +31,15 @@ const INFO_DRAFT_IN_PROGRESS = 'Já temos um draft em andamento';
 const INFO_CLOSED_DRAFT = '✅✅\n\nDraft finalizado com sucesso!';
 const INFO_MATCH_REGISTER = (match) => `✅✅\n\n## *${match}* ## registrado com sucesso! Você tem *12h* para postar o resultado.`;
 const INFO_MATCH_NOTIFIED = (match) => `⚠️⚠️\n\n## *${match}* ## 12h se passaram. Postou o resultado? 👀`;
-const INFO_ADD_TEAM = (team) => `✅✅\n\nTime *${team}* adicionado com sucesso!`;
+const INFO_ADD_TEAM = (teams) => {
+  if (Array.isArray(teams)) {
+    if (teams.length > 1) {
+      return `✅✅\n\nTimes *${teams.join(', ')}* adicionados com sucesso!`;
+    }
+    return `✅✅\n\nTime *${teams[0]}* adicionado com sucesso!`;
+  }
+  return `✅✅\n\nTime *${teams}* adicionado com sucesso!`;
+};
 
 // Constants for commands names
 const CMD_INIT_DRAFT = '!iniciar-draft';
