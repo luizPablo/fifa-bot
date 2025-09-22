@@ -963,7 +963,7 @@ const draftCommand = async (msg, member, client) => {
         const addedTeams = await addTeamsToDraft(members);
 
         try {
-          await client.sendMessage(msg.from, getFormattedDraftMessage());
+          await client.sendMessage(msg.from, getDraftOrderMessage());
           if (addedTeams.length > 0) {
             await client.sendMessage(msg.from, INFO_ADD_TEAM(addedTeams));
           }
