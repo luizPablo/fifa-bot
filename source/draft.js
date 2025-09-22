@@ -523,49 +523,44 @@ const removePassTurn = async (member, msg, client) => {
   const current = participants.find(participant => participant.choices.length < currentChoice);
   if (current && current.member === member) {
     try {
-      await client.sendMessage(msg.from, '❌ Você não pode remover um "Passou" durante sua vez. Por favor, faça sua escolha.');
+      await client.sendMessage(msg.from, '❌ Você não pode remover passes durante sua vez de escolha. Por favor, faça sua escolha.');
     } catch (error) {
       console.log('Error sending message:', error);
     }
     return;
   }
 
-  const choicesMade = participant.choices.length;
-  const ableToRemove = (choicesMade - 1) >= (currentChoice - 1);
+  const currentChooser = participants.find(participant => participant.choices.length < currentChoice);
 
-  if (!ableToRemove) {
-    try {
-      await client.sendMessage(msg.from, `❌ Você não pode remover mais passes, isso o impediria de fazer sua escolha na rodada ${currentChoice}.`);
-    } catch (error) {
-      console.log('Error sending message:', error);
-    }
-    return;
-  }
-
-  const currentParticipantIndex = participants.map(p => JSON.stringify(p)).indexOf(JSON.stringify(current));
+  const currentChooserIndex = participants.map(p => JSON.stringify(p)).indexOf(JSON.stringify(currentChooser));
   const participantIndex = participants.map(p => JSON.stringify(p)).indexOf(JSON.stringify(participant));
 
-  if (participantIndex < currentParticipantIndex && choicesMade === (currentChoice - 1)) {
+  let removeReference = currentChoice - 1;
+  if (participantIndex < currentChooserIndex) {
+    removeReference = currentChoice;
+  }
+
+  if ((participant.choices.length - 1) <= removeReference) {
     try {
-      await client.sendMessage(msg.from, `❌ Sua vez na rodada ${currentChoice} já passou. Não é possível remover passes.`);
+      await client.sendMessage(msg.from, '❌ Você não tem passes para remover nesta rodada.');
     } catch (error) {
       console.log('Error sending message:', error);
     }
     return;
   }
 
-  const lastPassIndex = participant.choices.lastIndexOf('Passou');
-
-  if (lastPassIndex !== -1) {
-    participant.choices.splice(lastPassIndex, 1);
-
-    try {
-      await client.sendMessage(msg.from, `✅ Passe removido com sucesso! Agora você poderá fazer sua escolha na rodada ${participant.choices.length + 1} quando for sua vez.`);
-      await client.sendMessage(msg.from, getFormattedDraftMessage());
-      await callNextMember(msg, chat, client, true);
-    } catch (error) {
-      console.log('Error sending message:', error);
+  for (let i = participant.choices.length - 1; i >= removeReference; i--) {
+    if (participant.choices[i] === 'Passou') {
+      participant.choices.splice(i, 1);
     }
+  }
+
+  try {
+    await client.sendMessage(msg.from, `✅ Passe removido com sucesso! Agora você poderá fazer sua escolha na rodada ${participant.choices.length + 1} quando for sua vez.`);
+    await client.sendMessage(msg.from, getFormattedDraftMessage());
+    await callNextMember(msg, chat, client, true);
+  } catch (error) {
+    console.log('Error sending message:', error);
   }
 };
 
