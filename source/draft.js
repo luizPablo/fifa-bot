@@ -924,7 +924,7 @@ const draftCommand = async (msg, member, client) => {
       }
       break;
     case CMD_ADD_TEAM:
-      if (draftStarted) {
+      try {
         if (!isAdmin) {
           try {
             await client.sendMessage(msg.from, ERR_COMMAND_NOT_ALLOWED);
@@ -970,10 +970,12 @@ const draftCommand = async (msg, member, client) => {
         } catch (error) {
           console.log('Error sending message:', error);
         }
+      } catch (error) {
+        console.log('Error adding teams:', error);
       }
       break;
     case CMD_REMOVE_TEAM:
-      if (draftStarted) {
+      try {
         if (!isAdmin) {
           try {
             await client.sendMessage(msg.from, ERR_COMMAND_NOT_ALLOWED);
@@ -1016,6 +1018,8 @@ const draftCommand = async (msg, member, client) => {
         } catch (error) {
           console.log('Error sending message:', error);
         }
+      } catch (error) {
+        console.log('Error removing team:', error);
       }
       break;
     case CMD_REMOVE_PASS_TURN:
