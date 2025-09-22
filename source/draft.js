@@ -542,7 +542,7 @@ const removePassTurn = async (member, msg, client) => {
 
   if ((participant.choices.length - 1) <= removeReference) {
     try {
-      await client.sendMessage(msg.from, '❌ Você não tem passes para remover nesta rodada.');
+      await client.sendMessage(msg.from, '❌ Você não tem passes para remover.');
     } catch (error) {
       console.log('Error sending message:', error);
     }
