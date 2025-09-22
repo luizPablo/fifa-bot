@@ -287,8 +287,6 @@ const initDraftNoShuffle = async (msg, member, client) => {
     choices: [],
   }));
 
-  draftStarted = true;
-
   try {
     chat = await msg.getChat();
   } catch (error) {
@@ -313,6 +311,7 @@ const initDraftNoShuffle = async (msg, member, client) => {
 
     // Short delay before starting the draft
     setTimeout(async () => {
+      draftStarted = true;
       await client.sendMessage(msg.from, getFormattedDraftMessage());
       await callNextMember(msg, chat, client);
     }, 300000); // 5 minutes
@@ -348,8 +347,6 @@ const populateParticipants = async (members, msg, client) => {
     team: member,
     choices: [],
   }));
-
-  draftStarted = true;
 
   return participants;
 };
@@ -770,11 +767,9 @@ const draftCommand = async (msg, member, client) => {
         const members = msg.body.split('!iniciar-draft')[1].split('\n');
         const filteredMembers = members.filter(member => member);
 
-        const draftStarted = await populateParticipants(filteredMembers, msg, client);
+        await populateParticipants(filteredMembers, msg, client);
 
-        if (!draftStarted) {
-          await client.sendMessage(msg.from, ERR_INIT_DRAFT);
-        } else {
+        try {
           try {
             chat = await msg.getChat();
           } catch (error) {
@@ -797,12 +792,15 @@ const draftCommand = async (msg, member, client) => {
           try {
             await client.sendMessage(msg.from, getDraftOrderMessage());
             setTimeout(async () => {
+              draftStarted = true;
               await client.sendMessage(msg.from, getFormattedDraftMessage());
               await callNextMember(msg, chat, client);
             }, 300000); // 5 minutes
           } catch (error) {
             console.log('Error sending message:', error);
           }
+        } catch (error) {
+          console.log('Error setting up chat:', error);
         }
       }
       break;
@@ -969,7 +967,6 @@ const draftCommand = async (msg, member, client) => {
           if (addedTeams.length > 0) {
             await client.sendMessage(msg.from, INFO_ADD_TEAM(addedTeams));
           }
-          await callNextMember(msg, chat, client, true);
         } catch (error) {
           console.log('Error sending message:', error);
         }
