@@ -519,7 +519,33 @@ const removePassTurn = async (member, msg, client) => {
     return;
   }
 
-  if (participant.choices.filter(c => c !== 'Passou').length === currentChoice) {
+  // check if is the user's turn
+  const current = participants.find(participant => participant.choices.length < currentChoice);
+  if (current && current.member === member) {
+    try {
+      await client.sendMessage(msg.from, '❌ Você não pode remover um "Passou" durante sua vez. Por favor, faça sua escolha.');
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  const choicesMade = participant.choices.length;
+  const ableToRemove = (choicesMade - 1) >= (currentChoice - 1);
+
+  if (!ableToRemove) {
+    try {
+      await client.sendMessage(msg.from, `❌ Você não pode remover mais passes, isso o impediria de fazer sua escolha na rodada ${currentChoice}.`);
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  const currentParticipantIndex = participants.map(p => JSON.stringify(p)).indexOf(JSON.stringify(current));
+  const participantIndex = participants.map(p => JSON.stringify(p)).indexOf(JSON.stringify(participant));
+
+  if (participantIndex < currentParticipantIndex && choicesMade === (currentChoice - 1)) {
     try {
       await client.sendMessage(msg.from, `❌ Sua vez na rodada ${currentChoice} já passou. Não é possível remover passes.`);
     } catch (error) {
