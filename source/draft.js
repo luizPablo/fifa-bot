@@ -40,7 +40,8 @@ const {
   COMIC_MESSAGES,
   CMD_REMOVE_PASS_TURN,
   CMD_DRAFT_CONTINUE,
-  ERR_NO_PASS_TURN_TO_REMOVE
+  ERR_NO_PASS_TURN_TO_REMOVE,
+  CMD_INIT_DRAFT_NO_SHUFFLE,
 } = require("./utils/constants");
 
 let contactsMap = {
@@ -92,6 +93,12 @@ const getFormattedDraftMessage = () => {
 
   return `${INFO_LIST_HEADER}${formattedList}`;
 };
+
+const getDraftOrderMessage = () => {
+  const orderList = participants.map((participant, index) => `${index + 1}. ${participant.team}`).join('\n');
+  const draftWillStartMessage = `O draft irá iniciar em 5 minutos, é o tempo de vocês conversarem merda, especialidade da casa! Prepare-se! ⏳`;
+  return `📋 *Ordem de Escolha:*\n\n${orderList}\n\n${draftWillStartMessage}`;
+}
 
 const draftContinue = async (msg, member, client) => {
   const isAdmin = ['558496208030', '558498178229', '558498483035'].includes(member);
@@ -182,13 +189,10 @@ const draftContinue = async (msg, member, client) => {
       throw new Error("Nenhum participante válido encontrado nos dados fornecidos.");
     }
 
-    const maxChoices = Math.max(...parsedParticipants.map(p => p.choices.length));
-    const minChoices = Math.min(...parsedParticipants.map(p => p.choices.length));
-
-    const determinedCurrentChoice = (maxChoices === minChoices) ? maxChoices + 1 : maxChoices;
+    const determinedCurrentChoice = Math.min(...parsedParticipants.map(p => p.choices.length)) + 1;
 
     participants = parsedParticipants;
-    currentChoice = Math.min(determinedCurrentChoice, 5);
+    currentChoice = determinedCurrentChoice;
     draftStarted = true;
     allChoicesDone = currentChoice > 5;
 
@@ -232,6 +236,91 @@ const draftContinue = async (msg, member, client) => {
   }
 };
 
+const initDraftNoShuffle = async (msg, member, client) => {
+  const isAdmin = ['558496208030', '558498178229', '558498483035'].includes(member);
+
+  if (!isAdmin) {
+    try {
+      await client.sendMessage(msg.from, ERR_COMMAND_NOT_ALLOWED);
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  if (draftStarted) {
+    try {
+      await client.sendMessage(msg.from, INFO_DRAFT_IN_PROGRESS);
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  const members = msg.body.split('!draft')[1].split('\n');
+  const filteredMembers = members.filter(member => member.trim());
+
+  if (!filteredMembers.length) {
+    try {
+      await client.sendMessage(msg.from, "❌ Nenhum time encontrado na lista. Use o formato:\n!draft\nTime1\nTime2\n...");
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  // Validate members without shuffling
+  if (!filteredMembers.every(member => MEMBERS_MAP[member.trim()])) {
+    try {
+      const invalidMembers = filteredMembers.filter(member => !MEMBERS_MAP[member.trim()]).join(", ");
+      await client.sendMessage(msg.from, `${ERR_WRONG_LIST}\nTimes inválidos: ${invalidMembers}`);
+    } catch (error) {
+      console.log('Error sending message:', error);
+    }
+    return;
+  }
+
+  // Create participants with the exact order provided
+  participants = filteredMembers.map(member => ({
+    member: MEMBERS_MAP[member.trim()],
+    team: member.trim(),
+    choices: [],
+  }));
+
+  draftStarted = true;
+
+  try {
+    chat = await msg.getChat();
+  } catch (error) {
+    console.log('Error getting chat:', error);
+    return;
+  }
+
+  // Setup contacts
+  for (let participant of chat.participants) {
+    try {
+      const contact = await client.getContactById(participant.id._serialized);
+      contactsMap[contact.number] = contact;
+    } catch (error) {
+      console.log('Error getting contact:', error);
+      return;
+    }
+  }
+
+  try {
+    await client.sendMessage(msg.from, `✅ Draft iniciado com ordem personalizada!\n📋 Total de times: ${participants.length}`);
+    await client.sendMessage(msg.from, getDraftOrderMessage());
+
+    // Short delay before starting the draft
+    setTimeout(async () => {
+      await client.sendMessage(msg.from, getFormattedDraftMessage());
+      await callNextMember(msg, chat, client);
+    }, 300000); // 5 minutes
+  } catch (error) {
+    console.log('Error sending message:', error);
+  }
+};
+
 const populateParticipants = async (members, msg, client) => {
   if (!Array.isArray(members) || members.length === 0) {
     console.log('Invalid members list.');
@@ -248,6 +337,12 @@ const populateParticipants = async (members, msg, client) => {
     return null;
   }
 
+  // shuffle members array
+  for (let i = members.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [members[i], members[j]] = [members[j], members[i]];
+  }
+
   participants = members.map(member => ({
     member: MEMBERS_MAP[member],
     team: member,
@@ -261,6 +356,11 @@ const populateParticipants = async (members, msg, client) => {
 
 const addTeamsToDraft = async (members) => {
   const addedTeams = [];
+
+  if (!Array.isArray(members) || members.length === 0) {
+    console.log('Invalid members list.');
+    return addedTeams;
+  }
 
   for (const member of members) {
     // Check if the member exists on the MEMBERS_MAP and isn't already participating
@@ -617,11 +717,17 @@ const draftCommand = async (msg, member, client) => {
   let command;
 
   const initDraft = msg.body.toLowerCase().startsWith('!iniciar-draft');
+  const draftNoShuffle = msg.body.toLowerCase().startsWith('!draft');
   const finishDraft = msg.body.toLowerCase().startsWith('!finalizar-draft');
   const continueDraft = msg.body.toLowerCase().startsWith('!continuar-draft');
+  const addTeams = msg.body.toLowerCase().startsWith('!adicionar-time');
 
   if (initDraft) {
     command = CMD_INIT_DRAFT;
+  }
+
+  if (draftNoShuffle) {
+    command = CMD_INIT_DRAFT_NO_SHUFFLE;
   }
 
   if (finishDraft) {
@@ -630,6 +736,10 @@ const draftCommand = async (msg, member, client) => {
 
   if (continueDraft) {
     command = CMD_DRAFT_CONTINUE;
+  }
+
+  if (addTeams) {
+    command = CMD_ADD_TEAM;
   }
 
   if (!command) {
@@ -685,12 +795,22 @@ const draftCommand = async (msg, member, client) => {
           }
 
           try {
-            await client.sendMessage(msg.from, getFormattedDraftMessage());
-            await callNextMember(msg, chat, client);
+            await client.sendMessage(msg.from, getDraftOrderMessage());
+            setTimeout(async () => {
+              await client.sendMessage(msg.from, getFormattedDraftMessage());
+              await callNextMember(msg, chat, client);
+            }, 300000); // 5 minutes
           } catch (error) {
             console.log('Error sending message:', error);
           }
         }
+      }
+      break;
+    case CMD_INIT_DRAFT_NO_SHUFFLE:
+      try {
+        await initDraftNoShuffle(msg, member, client);
+      } catch (error) {
+        console.log('Error sending message:', error);
       }
       break;
     case CMD_DRAFT_CONTINUE:
@@ -841,7 +961,7 @@ const draftCommand = async (msg, member, client) => {
           return;
         }
 
-        const members = memberString.split(',').map(m => m.trim());
+        const members = memberString.split('\n').map(m => m.trim());
         const addedTeams = await addTeamsToDraft(members);
 
         try {

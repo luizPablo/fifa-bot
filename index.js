@@ -15,6 +15,7 @@ const {
   CMD_REMOVE_TEAM,
   CMD_DRAFT_CONTINUE,
   CMD_REMOVE_PASS_TURN,
+  CMD_INIT_DRAFT_NO_SHUFFLE,
 } = require("./source/utils/constants");
 
 let connectionRetries = 0;
@@ -106,11 +107,17 @@ client.on('message', async msg => {
   let command;
 
   const initDraft = msg.body.toLowerCase().startsWith('!iniciar-draft');
+  const initDraftNoShuffle = msg.body.toLowerCase().startsWith('!draft');
   const finishDraft = msg.body.toLowerCase().startsWith('!finalizar-draft');
   const continueDraft = msg.body.toLowerCase().startsWith('!continuar-draft');
+  const addTeamsToDraft = msg.body.toLowerCase().startsWith('!adicionar-time');
 
   if (initDraft) {
     command = CMD_INIT_DRAFT;
+  }
+
+  if (initDraftNoShuffle) {
+    command = CMD_INIT_DRAFT_NO_SHUFFLE;
   }
 
   if (finishDraft) {
@@ -119,6 +126,10 @@ client.on('message', async msg => {
 
   if (continueDraft) {
     command = CMD_DRAFT_CONTINUE;
+  }
+
+  if (addTeamsToDraft) {
+    command = CMD_ADD_TEAM;
   }
 
   if (!command) {
@@ -133,7 +144,7 @@ client.on('message', async msg => {
   const validCommands = new Set([
     CMD_INIT_DRAFT, CMD_FINISH_DRAFT, CMD_CHOICE, CMD_CHOICE_FORCE,
     CMD_PASS_TURN, CMD_PASS_TURN_FORCE, CMD_SUBS, CMD_SUBS_FORCE, CMD_ADD_TEAM,
-    CMD_REMOVE_TEAM, CMD_DRAFT_CONTINUE, CMD_REMOVE_PASS_TURN
+    CMD_REMOVE_TEAM, CMD_DRAFT_CONTINUE, CMD_REMOVE_PASS_TURN, CMD_INIT_DRAFT_NO_SHUFFLE
   ]);
 
   if (validCommands.has(command)) {

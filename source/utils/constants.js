@@ -22,7 +22,7 @@ const ERR_PASS_TURN_IN_CHOICE_COMMAND = 'Deixe de ser bocó! Se quiser passar a 
 const ERR_NO_PASS_TURN_TO_REMOVE = 'Você não tem nenhum "passo" para remover';
 
 // Constants for info messages
-const INFO_LIST_HEADER = `*- Limite de escolhas:*\nVocê pode fazer até 5 escolhas\n*- Cadastrar escolha:*\n!escolha <Nome Sobrenome>\nEx: !escolha Memphis Depay\n*- Passar a vez:*\n!passo <numero de vezes>\nEx: !passo 1\n*- Remover passo:*\n!remover-passo\nEste comando irá remover o seu ultimo "Passou", se for possível\n\n*⚠️ 30 minutos para primeira escolha*\n*⚠️ 20 minutos na segunda rodada*\n*⚠️ 10 minutos nas rodadas seguintes*\n\n`;
+const INFO_LIST_HEADER = `*- Limite de escolhas:*\nVocê pode fazer até 5 escolhas\n*- Cadastrar escolha:*\n!escolha <Nome Sobrenome>\nEx: !escolha Memphis Depay\n*- Passar a vez:*\n!passo <numero de vezes>\nEx: !passo 1\n*- Remover passo:*\n!remover-passo\nEste comando irá remover o seu último "Passou", se for possível\n\n*⚠️ 30 minutos para primeira escolha*\n*⚠️ 20 minutos na segunda rodada*\n*⚠️ 10 minutos nas rodadas seguintes*\n\n`;
 const INFO_STILL_YOUR_TURN = (member) => `Ainda é sua vez @${member}`;
 const INFO_YOUR_TURN = (member) => `É sua vez @${member}`;
 const INFO_FINISHED_DRAFT = '✅✅\n\n- Escolhas finalizadas\n- Substituições ainda são possíveis\n- Lembre-se de finalizar o draft após as substituições\n\n*!finalizar-draft*';
@@ -56,6 +56,7 @@ const CMD_ADD_TEAM = '!adicionar-time';
 const CMD_REMOVE_TEAM = '!remover-time';
 const CMD_REMOVE_PASS_TURN = '!remover-passo';
 const CMD_DRAFT_CONTINUE = '!continuar-draft';
+const CMD_INIT_DRAFT_NO_SHUFFLE = '!draft';
 
 const MEMBERS_MAP = {
   "Chelsea": "558496208030",
@@ -166,4 +167,5 @@ module.exports = {
   CMD_REMOVE_PASS_TURN,
   CMD_DRAFT_CONTINUE,
   ERR_NO_PASS_TURN_TO_REMOVE,
+  CMD_INIT_DRAFT_NO_SHUFFLE
 };
